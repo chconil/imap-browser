@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { WebSocket } from '@fastify/websocket';
 import { authService } from '../services/auth/auth-service.js';
 import { imapConnectionPool } from '../services/imap/connection-pool.js';
-import type { WebSocketEventPayload, WebSocketEvent as WSEvent } from '@imap-browser/shared';
+import type { WebSocketEventPayload } from '@imap-browser/shared';
 
 interface ClientConnection {
   ws: WebSocket;

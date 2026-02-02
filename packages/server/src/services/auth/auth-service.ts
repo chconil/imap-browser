@@ -1,6 +1,6 @@
 import argon2 from 'argon2';
 import { v4 as uuidv4 } from 'uuid';
-import { eq, and, gt } from 'drizzle-orm';
+import { eq, and, gt, lt } from 'drizzle-orm';
 import { getDatabase, users, sessions, settings, type User, type Session } from '../../db/index.js';
 import { EncryptionService, credentialCache } from './encryption-service.js';
 import type { CreateUserInput, LoginInput, UpdateUserInput } from '@imap-browser/shared';
@@ -229,9 +229,10 @@ export class AuthService {
    */
   async getUserById(userId: string): Promise<User | null> {
     const db = getDatabase();
-    return db.query.users.findFirst({
+    const user = await db.query.users.findFirst({
       where: eq(users.id, userId),
-    }) || null;
+    });
+    return user ?? null;
   }
 
   /**
@@ -260,7 +261,7 @@ export class AuthService {
     const now = new Date().toISOString();
 
     const result = await db.delete(sessions)
-      .where(gt(now, sessions.expiresAt));
+      .where(lt(sessions.expiresAt, now));
 
     return result.changes;
   }

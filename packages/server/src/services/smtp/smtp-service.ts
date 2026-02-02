@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { eq, and } from 'drizzle-orm';
-import { getDatabase, accounts, drafts, draftAttachments } from '../../db/index.js';
+import { getDatabase, accounts, draftAttachments } from '../../db/index.js';
 import { EncryptionService } from '../auth/encryption-service.js';
 import type { ComposeEmailInput, SendEmailResponse } from '@imap-browser/shared';
 

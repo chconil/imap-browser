@@ -5,8 +5,6 @@ import { getDatabase, folders, messages, attachments, type NewFolder, type NewMe
 import { imapConnectionPool } from './connection-pool.js';
 import type { EmailAddress } from '@imap-browser/shared';
 
-const SYNC_BATCH_SIZE = 100;
-
 export interface SyncProgress {
   accountId: string;
   folderId: string;
@@ -127,8 +125,8 @@ export class ImapSyncService {
     // Update folder metadata
     await db.update(folders)
       .set({
-        uidValidity: mailbox.uidValidity,
-        uidNext: mailbox.uidNext,
+        uidValidity: mailbox.uidValidity ? Number(mailbox.uidValidity) : null,
+        uidNext: mailbox.uidNext ? Number(mailbox.uidNext) : null,
         highestModSeq: mailbox.highestModseq?.toString() || null,
         totalMessages: mailbox.exists,
         lastSyncAt: new Date().toISOString(),
@@ -136,7 +134,7 @@ export class ImapSyncService {
       .where(eq(folders.id, folder.id));
 
     // Check if UIDVALIDITY changed (requires full resync)
-    if (folder.uidValidity && folder.uidValidity !== mailbox.uidValidity) {
+    if (folder.uidValidity && folder.uidValidity !== Number(mailbox.uidValidity)) {
       // Delete all messages and resync
       await db.delete(messages).where(eq(messages.folderId, folder.id));
     }
@@ -282,7 +280,7 @@ export class ImapSyncService {
       bodyParts: ['TEXT', '1', '1.1', '1.2'],
     }, { uid: true })) {
       if (msg.bodyParts) {
-        for (const [partId, content] of msg.bodyParts) {
+        for (const [_partId, content] of msg.bodyParts) {
           const text = content?.toString('utf8') || '';
           // Heuristic: HTML usually has tags
           if (text.includes('<html') || text.includes('<body') || text.includes('<div')) {
@@ -335,8 +333,8 @@ export class ImapSyncService {
       ccJson: JSON.stringify(cc),
       bccJson: JSON.stringify(bcc),
       replyToJson: JSON.stringify(replyTo),
-      date: envelope?.date?.toISOString() || now,
-      receivedAt: msg.internalDate?.toISOString() || now,
+      date: envelope?.date instanceof Date ? envelope.date.toISOString() : (envelope?.date || now),
+      receivedAt: msg.internalDate instanceof Date ? msg.internalDate.toISOString() : (msg.internalDate || now),
       flagsJson: JSON.stringify(Array.from(msg.flags || [])),
       size: msg.size || 0,
       hasAttachments,
@@ -400,7 +398,7 @@ export class ImapSyncService {
       if (node.disposition === 'attachment' || node.disposition === 'inline') {
         attachments.push({
           filename: node.dispositionParameters?.filename || node.parameters?.name,
-          contentType: `${node.type}/${node.subtype}`,
+          contentType: node.type,
           size: node.size,
           contentId: node.id || undefined,
           disposition: node.disposition,

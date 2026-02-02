@@ -10,9 +10,9 @@ export const users = sqliteTable('users', {
   encryptionSalt: text('encryption_salt').notNull(), // For deriving per-user encryption key
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
-}, (table) => [
-  uniqueIndex('users_email_idx').on(table.email),
-]);
+}, (table) => ({
+  emailIdx: uniqueIndex('users_email_idx').on(table.email),
+}));
 
 // Sessions table
 export const sessions = sqliteTable('sessions', {
@@ -22,10 +22,10 @@ export const sessions = sqliteTable('sessions', {
   createdAt: text('created_at').notNull(),
   userAgent: text('user_agent'),
   ipAddress: text('ip_address'),
-}, (table) => [
-  index('sessions_user_id_idx').on(table.userId),
-  index('sessions_expires_at_idx').on(table.expiresAt),
-]);
+}, (table) => ({
+  userIdIdx: index('sessions_user_id_idx').on(table.userId),
+  expiresAtIdx: index('sessions_expires_at_idx').on(table.expiresAt),
+}));
 
 // IMAP accounts table
 export const accounts = sqliteTable('accounts', {
@@ -58,10 +58,10 @@ export const accounts = sqliteTable('accounts', {
   // Timestamps
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
-}, (table) => [
-  index('accounts_user_id_idx').on(table.userId),
-  index('accounts_user_id_sort_order_idx').on(table.userId, table.sortOrder),
-]);
+}, (table) => ({
+  userIdIdx: index('accounts_user_id_idx').on(table.userId),
+  userIdSortOrderIdx: index('accounts_user_id_sort_order_idx').on(table.userId, table.sortOrder),
+}));
 
 // Folders table
 export const folders = sqliteTable('folders', {
@@ -85,10 +85,10 @@ export const folders = sqliteTable('folders', {
   hasChildren: integer('has_children', { mode: 'boolean' }).notNull().default(false),
   // Timestamps
   lastSyncAt: text('last_sync_at'),
-}, (table) => [
-  index('folders_account_id_idx').on(table.accountId),
-  uniqueIndex('folders_account_path_idx').on(table.accountId, table.path),
-]);
+}, (table) => ({
+  accountIdIdx: index('folders_account_id_idx').on(table.accountId),
+  accountPathIdx: uniqueIndex('folders_account_path_idx').on(table.accountId, table.path),
+}));
 
 // Messages (headers) table
 export const messages = sqliteTable('messages', {
@@ -117,14 +117,14 @@ export const messages = sqliteTable('messages', {
   threadId: text('thread_id'),
   inReplyTo: text('in_reply_to'),
   referencesJson: text('references_json'), // JSON array
-}, (table) => [
-  index('messages_account_id_idx').on(table.accountId),
-  index('messages_folder_id_idx').on(table.folderId),
-  uniqueIndex('messages_folder_uid_idx').on(table.folderId, table.uid),
-  index('messages_date_idx').on(table.date),
-  index('messages_message_id_idx').on(table.messageId),
-  index('messages_thread_id_idx').on(table.threadId),
-]);
+}, (table) => ({
+  accountIdIdx: index('messages_account_id_idx').on(table.accountId),
+  folderIdIdx: index('messages_folder_id_idx').on(table.folderId),
+  folderUidIdx: uniqueIndex('messages_folder_uid_idx').on(table.folderId, table.uid),
+  dateIdx: index('messages_date_idx').on(table.date),
+  messageIdIdx: index('messages_message_id_idx').on(table.messageId),
+  threadIdIdx: index('messages_thread_id_idx').on(table.threadId),
+}));
 
 // Message bodies table (lazy loaded)
 export const messageBodies = sqliteTable('message_bodies', {
@@ -134,9 +134,9 @@ export const messageBodies = sqliteTable('message_bodies', {
   htmlBody: text('html_body'),
   rawHeadersJson: text('raw_headers_json'), // JSON object
   fetchedAt: text('fetched_at').notNull(),
-}, (table) => [
-  uniqueIndex('message_bodies_message_id_idx').on(table.messageId),
-]);
+}, (table) => ({
+  messageIdIdx: uniqueIndex('message_bodies_message_id_idx').on(table.messageId),
+}));
 
 // Attachments table
 export const attachments = sqliteTable('attachments', {
@@ -148,9 +148,9 @@ export const attachments = sqliteTable('attachments', {
   contentId: text('content_id'), // For inline images
   disposition: text('disposition', { enum: ['attachment', 'inline'] }).notNull().default('attachment'),
   partId: text('part_id').notNull(), // IMAP part identifier for streaming
-}, (table) => [
-  index('attachments_message_id_idx').on(table.messageId),
-]);
+}, (table) => ({
+  messageIdIdx: index('attachments_message_id_idx').on(table.messageId),
+}));
 
 // Drafts table (local unsent messages)
 export const drafts = sqliteTable('drafts', {
@@ -173,10 +173,10 @@ export const drafts = sqliteTable('drafts', {
   // Timestamps
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
-}, (table) => [
-  index('drafts_account_id_idx').on(table.accountId),
-  index('drafts_user_id_idx').on(table.userId),
-]);
+}, (table) => ({
+  accountIdIdx: index('drafts_account_id_idx').on(table.accountId),
+  userIdIdx: index('drafts_user_id_idx').on(table.userId),
+}));
 
 // Draft attachments (temporary storage)
 export const draftAttachments = sqliteTable('draft_attachments', {
@@ -187,9 +187,9 @@ export const draftAttachments = sqliteTable('draft_attachments', {
   size: integer('size').notNull(),
   data: blob('data', { mode: 'buffer' }).notNull(), // Stored in DB for simplicity
   createdAt: text('created_at').notNull(),
-}, (table) => [
-  index('draft_attachments_user_id_idx').on(table.userId),
-]);
+}, (table) => ({
+  userIdIdx: index('draft_attachments_user_id_idx').on(table.userId),
+}));
 
 // User settings table
 export const settings = sqliteTable('settings', {

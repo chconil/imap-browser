@@ -4,31 +4,7 @@ A polished, secure, open-source web client for managing multiple IMAP email acco
 
 ## Current Status
 
-**Phase 1-3 implemented** - Foundation, Authentication, and IMAP Integration structure is in place.
-
-### Known Issues to Fix
-
-Before the project builds successfully, these TypeScript errors need to be fixed:
-
-1. **`packages/server/src/db/schema.ts`** - Drizzle ORM schema syntax needs updating:
-   - The third argument to `sqliteTable()` should return an object with named indexes, not an array
-   - Change `(table) => [index(...)]` to `(table) => ({ indexName: index(...) })`
-
-2. **`packages/server/src/services/auth/auth-service.ts:232`** - Return type mismatch:
-   - Change `|| null` to handle undefined properly
-
-3. **`packages/server/src/services/auth/auth-service.ts:263`** - `gt()` function argument order
-
-4. **`packages/server/src/services/imap/sync-service.ts`**:
-   - Line 8: Remove unused `SYNC_BATCH_SIZE`
-   - Line 130: `uidValidity` bigint/number type mismatch
-   - Line 285: Remove unused `partId` variable
-   - Line 339: Handle Date type properly (check if string or Date before calling toISOString)
-   - Line 403: Check MessageStructureObject type from imapflow
-
-5. **`packages/server/src/services/smtp/smtp-service.ts:4`** - Remove unused `drafts` import
-
-6. **`packages/server/src/websocket/handler.ts:5`** - Remove unused `WSEvent` import
+**Phase 1-4 implemented** - Foundation, Authentication, IMAP Integration, and Email UI structure is in place. All packages build successfully.
 
 ## Quick Start
 
