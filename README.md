@@ -4,7 +4,7 @@ A polished, secure, open-source web client for managing multiple IMAP email acco
 
 ## Current Status
 
-**Phase 1-4 implemented** - Foundation, Authentication, IMAP Integration, and Email UI structure is in place. All packages build successfully.
+**Phases 1-7 implemented** - Foundation, Authentication, IMAP Integration, Email UI, Email Actions, Compose with Rich Text Editor, and Settings are all in place. All packages build successfully.
 
 ## Quick Start
 
@@ -47,11 +47,12 @@ imap-browser/
 │           ├── components/
 │           │   ├── layout/   # AppLayout, Sidebar, Header
 │           │   ├── accounts/ # AddAccountDialog
-│           │   ├── emails/   # EmailList, EmailView
-│           │   └── compose/  # ComposeDialog
+│           │   ├── emails/   # EmailList, EmailView, EmailToolbar
+│           │   ├── compose/  # ComposeDialog, RichTextEditor
+│           │   └── search/   # SearchBar
 │           ├── hooks/        # React Query hooks
 │           ├── stores/       # Zustand state
-│           └── pages/        # Login, Mail pages
+│           └── pages/        # Login, Mail, Settings pages
 │
 ├── Dockerfile
 ├── docker-compose.yml
@@ -76,6 +77,7 @@ imap-browser/
 - **Zustand** - Client state
 - **shadcn/ui + Radix UI** - Accessible components
 - **Tailwind CSS** - Styling
+- **TipTap** - Rich text editor for compose
 
 ## Architecture
 
@@ -161,21 +163,25 @@ docker run -p 3000:3000 -v imap-data:/app/data imap-browser
 - [x] **Phase 2**: Authentication, encryption, sessions
 - [x] **Phase 3**: IMAP connection pool, folder sync, message fetching
 - [x] **Phase 4**: Email UI (list, view, compose)
-- [ ] **Phase 5**: Email actions (flag, move, delete, search)
-- [ ] **Phase 6**: SMTP sending, rich text editor
-- [ ] **Phase 7**: Settings, unified tree view, offline caching
-- [ ] **Phase 8**: Testing, performance optimization
+- [x] **Phase 5**: Email actions (flag, move, delete, search)
+- [x] **Phase 6**: SMTP sending, rich text editor (TipTap)
+- [x] **Phase 7**: Settings page with full preferences UI
+- [ ] **Phase 8**: Testing, performance optimization, offline caching
 
 ## Key Files Reference
 
 | File | Purpose |
 |------|---------|
 | `packages/shared/src/types/*.ts` | All TypeScript types and Zod schemas |
-| `packages/server/src/db/schema.ts` | Database schema (needs fixes) |
+| `packages/server/src/db/schema.ts` | Database schema |
 | `packages/server/src/services/auth/encryption-service.ts` | AES-256-GCM encryption |
 | `packages/server/src/services/imap/connection-pool.ts` | IMAP connection management |
 | `packages/server/src/services/imap/sync-service.ts` | Folder and message sync |
 | `packages/client/src/components/emails/EmailList.tsx` | Virtualized email list |
+| `packages/client/src/components/emails/EmailToolbar.tsx` | Bulk email actions |
+| `packages/client/src/components/compose/RichTextEditor.tsx` | TipTap rich text editor |
+| `packages/client/src/components/search/SearchBar.tsx` | Email search with instant results |
+| `packages/client/src/pages/SettingsPage.tsx` | Settings UI |
 | `packages/client/src/hooks/use-*.ts` | React Query hooks |
 | `packages/client/src/stores/*.ts` | Zustand stores |
 
@@ -188,14 +194,18 @@ docker run -p 3000:3000 -v imap-data:/app/data imap-browser
 - Keyboard shortcuts (Gmail-like)
 - Dark mode support
 - Responsive design
-- Compose with attachments
+- Rich text compose with TipTap editor
+- File attachments with drag & drop
 - Reply/Reply All/Forward
+- Bulk email actions (mark read/unread, star, archive, delete, move)
+- Instant email search
+- Comprehensive settings page
 
 ## Contributing
 
-1. Fix the TypeScript errors listed above
-2. Run `npm run build` to verify
-3. Run `npm run dev` to test
+1. Run `npm install` to install dependencies
+2. Run `npm run build` to verify everything compiles
+3. Run `npm run dev` to start development servers
 4. Add tests in `packages/*/src/__tests__/`
 
 ## License
