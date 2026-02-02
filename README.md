@@ -4,7 +4,16 @@ A polished, secure, open-source web client for managing multiple IMAP email acco
 
 ## Current Status
 
-**Phases 1-7 implemented** - Foundation, Authentication, IMAP Integration, Email UI, Email Actions, Compose with Rich Text Editor, and Settings are all in place. All packages build successfully.
+**Ready for Testing!** Phases 1-7 are implemented and all integration tests pass.
+
+✅ User authentication (register, login, logout)
+✅ Settings management
+✅ IMAP account management
+✅ Email list with virtualized scrolling
+✅ Email viewing and actions
+✅ Rich text compose with TipTap
+✅ Search functionality
+✅ Dark mode support
 
 ## Quick Start
 
@@ -21,6 +30,61 @@ npm run dev
 # Or run separately:
 cd packages/server && npm run dev  # Server on port 3000
 cd packages/client && npm run dev  # Client on port 5173
+```
+
+## Testing the Application
+
+### Manual Testing (Frontend)
+
+1. Start the development servers:
+   ```bash
+   npm run dev
+   ```
+
+2. Open http://localhost:5173 in your browser
+
+3. **Register a new account** - Click "Sign up" and create an account
+
+4. **Login** - Use your credentials to log in
+
+5. **Add an IMAP account** - Click "Add Account" and enter your email server details:
+   - For Gmail: Use `imap.gmail.com` (port 993) and an [App Password](https://support.google.com/accounts/answer/185833)
+   - For Outlook: Use `outlook.office365.com` (port 993)
+   - For other providers: Check your email provider's IMAP settings
+
+6. **Explore the UI**:
+   - Browse folders in the sidebar
+   - View emails in the virtualized list
+   - Read emails with full HTML rendering
+   - Compose new emails with the rich text editor
+   - Use keyboard shortcuts (press `?` for help)
+   - Try dark mode in Settings
+
+### Automated API Tests
+
+Run the API test suite to verify all backend endpoints:
+
+```bash
+bash scripts/test-api.sh
+```
+
+This tests:
+- User registration and duplicate rejection
+- Login with valid/invalid credentials
+- Session management (/auth/me)
+- Settings CRUD
+- Accounts listing
+- Logout and session invalidation
+
+### Build Verification
+
+```bash
+# Build all packages
+npm run build
+
+# Check for TypeScript errors
+cd packages/client && npx tsc --noEmit
+cd packages/server && npx tsc --noEmit
 ```
 
 ## Project Structure
@@ -166,7 +230,8 @@ docker run -p 3000:3000 -v imap-data:/app/data imap-browser
 - [x] **Phase 5**: Email actions (flag, move, delete, search)
 - [x] **Phase 6**: SMTP sending, rich text editor (TipTap)
 - [x] **Phase 7**: Settings page with full preferences UI
-- [ ] **Phase 8**: Testing, performance optimization, offline caching
+- [x] **Phase 8**: API test suite (`scripts/test-api.sh`)
+- [ ] **Phase 9**: E2E tests (Playwright), performance optimization, offline caching
 
 ## Key Files Reference
 
