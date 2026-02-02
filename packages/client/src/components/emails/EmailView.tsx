@@ -35,7 +35,7 @@ export function EmailView() {
     openCompose,
   } = useMailStore();
 
-  const { data: email, isLoading } = useEmail(selectedAccountId, selectedEmailId);
+  const { data: email, isLoading, error } = useEmail(selectedAccountId, selectedEmailId);
   const updateFlags = useUpdateFlags();
   const deleteEmails = useDeleteEmails();
 
@@ -80,6 +80,14 @@ export function EmailView() {
     return (
       <div className="h-full flex items-center justify-center text-muted-foreground">
         Loading email...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-full flex items-center justify-center text-destructive">
+        {error instanceof Error ? error.message : 'Failed to load email'}
       </div>
     );
   }

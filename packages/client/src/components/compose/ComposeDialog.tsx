@@ -52,6 +52,7 @@ export function ComposeDialog() {
   const [isUploading, setIsUploading] = useState(false);
   const [htmlBody, setHtmlBody] = useState('');
   const [textBody, setTextBody] = useState('');
+  const [sendError, setSendError] = useState<string | null>(null);
   const editorRef = useRef<RichTextEditorRef>(null);
 
   const form = useForm<ComposeFormData>({
@@ -122,6 +123,7 @@ export function ComposeDialog() {
   };
 
   const onSubmit = async (data: ComposeFormData) => {
+    setSendError(null);
     try {
       await sendEmail.mutateAsync({
         accountId: data.accountId,
@@ -140,8 +142,9 @@ export function ComposeDialog() {
       setHtmlBody('');
       setTextBody('');
       editorRef.current?.setContent('');
-    } catch {
-      // Error handled by mutation
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to send email';
+      setSendError(message);
     }
   };
 
@@ -151,6 +154,7 @@ export function ComposeDialog() {
     setAttachments([]);
     setHtmlBody('');
     setTextBody('');
+    setSendError(null);
     editorRef.current?.setContent('');
   };
 
@@ -169,34 +173,51 @@ export function ComposeDialog() {
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
           <div className="space-y-3 flex-shrink-0">
+            {/* Send error */}
+            {sendError && (
+              <div className="text-sm text-destructive bg-destructive/10 p-2 rounded">
+                {sendError}
+              </div>
+            )}
+
             {/* Account selector */}
-            <div className="flex items-center gap-2">
-              <Label className="w-16">From</Label>
-              <Select
-                value={form.watch('accountId')}
-                onValueChange={(value) => form.setValue('accountId', value)}
-              >
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Select account" />
-                </SelectTrigger>
-                <SelectContent>
-                  {accounts.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.name} ({account.email})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Label className="w-16">From</Label>
+                <Select
+                  value={form.watch('accountId')}
+                  onValueChange={(value) => form.setValue('accountId', value)}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Select account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {accounts.map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.name} ({account.email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {form.formState.errors.accountId && (
+                <p className="text-sm text-destructive ml-[72px]">{form.formState.errors.accountId.message}</p>
+              )}
             </div>
 
             {/* To */}
-            <div className="flex items-center gap-2">
-              <Label className="w-16">To</Label>
-              <Input
-                placeholder="recipient@example.com"
-                {...form.register('to')}
-                className="flex-1"
-              />
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Label className="w-16">To</Label>
+                <Input
+                  placeholder="recipient@example.com"
+                  {...form.register('to')}
+                  className="flex-1"
+                />
+              </div>
+              {form.formState.errors.to && (
+                <p className="text-sm text-destructive ml-[72px]">{form.formState.errors.to.message}</p>
+              )}
             </div>
 
             {/* Cc */}
