@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState, createContext, useContext } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth-store';
 import { LoginPage } from '@/pages/LoginPage';
 import { MailPage } from '@/pages/MailPage';
+import { SettingsPage } from '@/pages/SettingsPage';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 const queryClient = new QueryClient({
@@ -14,8 +15,24 @@ const queryClient = new QueryClient({
   },
 });
 
+type Page = 'mail' | 'settings';
+
+interface NavigationContextType {
+  currentPage: Page;
+  navigate: (page: Page) => void;
+}
+
+const NavigationContext = createContext<NavigationContextType | null>(null);
+
+export function useNavigation() {
+  const ctx = useContext(NavigationContext);
+  if (!ctx) throw new Error('useNavigation must be used within NavigationProvider');
+  return ctx;
+}
+
 function AppContent() {
   const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
+  const [currentPage, setCurrentPage] = useState<Page>('mail');
 
   useEffect(() => {
     checkAuth();
@@ -36,7 +53,12 @@ function AppContent() {
   }
 
   // Show main app
-  return <MailPage />;
+  return (
+    <NavigationContext.Provider value={{ currentPage, navigate: setCurrentPage }}>
+      {currentPage === 'mail' && <MailPage />}
+      {currentPage === 'settings' && <SettingsPage />}
+    </NavigationContext.Provider>
+  );
 }
 
 export function App() {

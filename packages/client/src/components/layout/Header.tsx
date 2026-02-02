@@ -1,6 +1,7 @@
 import { useAuthStore } from '@/stores/auth-store';
 import { useMailStore } from '@/stores/mail-store';
 import { useSettingsStore } from '@/stores/settings-store';
+import { useNavigation } from '@/App';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -20,6 +21,7 @@ import {
   Settings,
   LogOut,
   Mail,
+  ArrowLeft,
 } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
 
@@ -27,17 +29,28 @@ export function Header() {
   const { user, logout } = useAuthStore();
   const { toggleSidebar } = useMailStore();
   const { theme, setTheme } = useSettingsStore();
+  const { currentPage, navigate } = useNavigation();
+
+  const isOnSettings = currentPage === 'settings';
 
   return (
     <header className="h-14 border-b bg-card flex items-center justify-between px-4 gap-4">
       {/* Left section */}
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" onClick={toggleSidebar}>
-          <Menu className="h-5 w-5" />
-        </Button>
+        {isOnSettings ? (
+          <Button variant="ghost" size="icon" onClick={() => navigate('mail')}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        ) : (
+          <Button variant="ghost" size="icon" onClick={toggleSidebar}>
+            <Menu className="h-5 w-5" />
+          </Button>
+        )}
         <div className="flex items-center gap-2">
           <Mail className="h-6 w-6 text-primary" />
-          <span className="font-semibold text-lg hidden sm:inline">IMAP Browser</span>
+          <span className="font-semibold text-lg hidden sm:inline">
+            {isOnSettings ? 'Settings' : 'IMAP Browser'}
+          </span>
         </div>
       </div>
 
@@ -96,7 +109,7 @@ export function Header() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('settings')}>
               <Settings className="h-4 w-4 mr-2" />
               Settings
             </DropdownMenuItem>
