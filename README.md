@@ -5,12 +5,15 @@ A polished, secure, open-source web client for managing multiple IMAP email acco
 ## Screenshots
 
 ![Inbox View](screenshots/inbox.png)
+
 *Main inbox with multi-account support and folder tree navigation*
 
 ![Add Account](screenshots/add-account.png)
+
 *Add email account with auto-configuration support*
 
 ![Settings](screenshots/settings.png)
+
 *Customizable appearance, email display, and compose settings*
 
 ## Features
