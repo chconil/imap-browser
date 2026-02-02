@@ -1,0 +1,28 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: imap-browser
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - imap-browser-data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOST=0.0.0.0
+      - DATABASE_PATH=/app/data/imap-browser.db
+      - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-to-a-random-32-char-string}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  imap-browser-data:
+    name: imap-browser-data
