@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useCreateAccount, useTestConnection } from '@/hooks/use-accounts';
+import { useAutoconfig } from '@/hooks/use-autoconfig';
 import { emailProviders } from '@imap-browser/shared';
 import {
   Dialog,
@@ -42,13 +43,19 @@ const accountSchema = z.object({
 
 type AccountFormData = z.infer<typeof accountSchema>;
 
+type AutoconfigStatus = 'idle' | 'loading' | 'found' | 'not-found';
+
 export function AddAccountDialog() {
   const [open, setOpen] = useState(false);
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [testError, setTestError] = useState<string | null>(null);
+  const [autoconfigStatus, setAutoconfigStatus] = useState<AutoconfigStatus>('idle');
+  const autoconfigTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastAutoconfigEmail = useRef<string>('');
 
   const createAccount = useCreateAccount();
   const testConnection = useTestConnection();
+  const autoconfig = useAutoconfig();
 
   const form = useForm<AccountFormData>({
     resolver: zodResolver(accountSchema),
@@ -79,6 +86,68 @@ export function AddAccountDialog() {
       form.setValue('smtpSecurity', preset.smtpSecurity);
     }
   };
+
+  const performAutoconfig = useCallback(async (email: string) => {
+    // Don't re-run for the same email
+    if (email === lastAutoconfigEmail.current) {
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return;
+    }
+
+    lastAutoconfigEmail.current = email;
+    setAutoconfigStatus('loading');
+
+    try {
+      const result = await autoconfig.mutateAsync({ email });
+
+      if (result.found && result.imap) {
+        // Auto-fill the form fields
+        form.setValue('imapHost', result.imap.host);
+        form.setValue('imapPort', result.imap.port);
+        form.setValue('imapSecurity', result.imap.security);
+
+        if (result.smtp) {
+          form.setValue('smtpHost', result.smtp.host);
+          form.setValue('smtpPort', result.smtp.port);
+          form.setValue('smtpSecurity', result.smtp.security);
+        }
+
+        // Default username to email address
+        if (!form.getValues('imapUsername')) {
+          form.setValue('imapUsername', email);
+        }
+
+        // Set provider name
+        form.setValue('provider', result.provider ? `auto-${result.provider.toLowerCase()}` : 'auto-detected');
+
+        setAutoconfigStatus('found');
+      } else {
+        setAutoconfigStatus('not-found');
+      }
+    } catch {
+      setAutoconfigStatus('not-found');
+    }
+  }, [autoconfig, form]);
+
+  const handleEmailBlur = useCallback(() => {
+    const email = form.getValues('email');
+    if (!email) return;
+
+    // Clear any pending timeout
+    if (autoconfigTimeoutRef.current) {
+      clearTimeout(autoconfigTimeoutRef.current);
+    }
+
+    // Debounce the autoconfig lookup
+    autoconfigTimeoutRef.current = setTimeout(() => {
+      performAutoconfig(email);
+    }, 300);
+  }, [form, performAutoconfig]);
 
   const handleTest = async () => {
     const values = form.getValues();
@@ -117,13 +186,41 @@ export function AddAccountDialog() {
       setOpen(false);
       form.reset();
       setTestStatus('idle');
+      setAutoconfigStatus('idle');
+      lastAutoconfigEmail.current = '';
     } catch {
       // Error handled by mutation
     }
   };
 
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (!newOpen) {
+      // Reset state when dialog closes
+      form.reset();
+      setTestStatus('idle');
+      setAutoconfigStatus('idle');
+      lastAutoconfigEmail.current = '';
+      if (autoconfigTimeoutRef.current) {
+        clearTimeout(autoconfigTimeoutRef.current);
+      }
+    }
+  };
+
+  // Get provider display text
+  const getProviderDisplay = () => {
+    const provider = form.watch('provider');
+    if (provider.startsWith('auto-')) {
+      const name = provider.replace('auto-', '');
+      return name === 'detected' ? 'Auto-detected' : `${name.charAt(0).toUpperCase()}${name.slice(1)} (auto)`;
+    }
+    return undefined;
+  };
+
+  const providerDisplay = getProviderDisplay();
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
           <Plus className="h-4 w-4 mr-2" />
@@ -156,23 +253,48 @@ export function AddAccountDialog() {
             {/* Email */}
             <div className="grid gap-2">
               <Label htmlFor="email">Email Address</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                {...form.register('email')}
-              />
+              <div className="relative">
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  {...form.register('email')}
+                  onBlur={handleEmailBlur}
+                  className="pr-8"
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                  {autoconfigStatus === 'loading' && (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                  {autoconfigStatus === 'found' && (
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  )}
+                </div>
+              </div>
+              {autoconfigStatus === 'found' && (
+                <p className="text-sm text-green-600">
+                  Settings auto-detected{providerDisplay ? ` (${providerDisplay})` : ''}
+                </p>
+              )}
             </div>
 
             {/* Provider preset */}
             <div className="grid gap-2">
               <Label>Email Provider</Label>
               <Select
-                value={form.watch('provider')}
+                value={form.watch('provider').startsWith('auto-') ? 'custom' : form.watch('provider')}
                 onValueChange={handleProviderChange}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue>
+                    {providerDisplay || (
+                      form.watch('provider') === 'custom' ? 'Custom' :
+                      form.watch('provider') === 'gmail' ? 'Gmail' :
+                      form.watch('provider') === 'outlook' ? 'Outlook/Microsoft 365' :
+                      form.watch('provider') === 'yahoo' ? 'Yahoo' :
+                      form.watch('provider') === 'icloud' ? 'iCloud' : 'Custom'
+                    )}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="custom">Custom</SelectItem>

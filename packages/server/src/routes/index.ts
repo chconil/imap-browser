@@ -4,6 +4,7 @@ import { registerAccountRoutes } from './accounts.js';
 import { registerEmailRoutes } from './emails.js';
 import { registerComposeRoutes } from './compose.js';
 import { registerSettingsRoutes } from './settings.js';
+import { registerAutoconfigRoutes } from './autoconfig.js';
 
 export async function registerRoutes(fastify: FastifyInstance): Promise<void> {
   await registerAuthRoutes(fastify);
@@ -11,6 +12,7 @@ export async function registerRoutes(fastify: FastifyInstance): Promise<void> {
   await registerEmailRoutes(fastify);
   await registerComposeRoutes(fastify);
   await registerSettingsRoutes(fastify);
+  await registerAutoconfigRoutes(fastify);
 
   // Health check endpoint
   fastify.get('/api/health', async () => {

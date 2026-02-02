@@ -6,3 +6,4 @@ export * from './compose.js';
 export * from './settings.js';
 export * from './websocket.js';
 export * from './api.js';
+export * from './autoconfig.js';

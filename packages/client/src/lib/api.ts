@@ -15,6 +15,8 @@ import type {
   ComposeEmailInput,
   UserSettings,
   UpdateSettingsInput,
+  AutoconfigResult,
+  AutoconfigLookupInput,
 } from '@imap-browser/shared';
 
 const API_BASE = '/api';
@@ -266,6 +268,15 @@ export const settingsApi = {
   update: (input: UpdateSettingsInput) =>
     request<{ settings: UserSettings }>('/settings', {
       method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+};
+
+// Autoconfig API
+export const autoconfigApi = {
+  lookup: (input: AutoconfigLookupInput) =>
+    request<AutoconfigResult>('/autoconfig/lookup', {
+      method: 'POST',
       body: JSON.stringify(input),
     }),
 };
