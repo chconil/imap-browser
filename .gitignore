@@ -41,3 +41,8 @@ test-results/
 # Temp files
 tmp/
 temp/
+
+# Build artifacts
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
