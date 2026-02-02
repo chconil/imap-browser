@@ -48,11 +48,12 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
+        // Clear localStorage first to prevent persist middleware from restoring state
+        localStorage.removeItem('auth-storage');
         try {
           await authApi.logout();
         } finally {
-          set({ user: null, isAuthenticated: false });
-          localStorage.removeItem('auth-storage');
+          set({ user: null, isAuthenticated: false, isLoading: false });
         }
       },
 

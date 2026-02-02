@@ -2,18 +2,31 @@
 
 A polished, secure, open-source web client for managing multiple IMAP email accounts.
 
-## Current Status
+## Screenshots
 
-**Ready for Testing!** Phases 1-7 are implemented and all integration tests pass.
+![Inbox View](screenshots/inbox.png)
+*Main inbox with multi-account support and folder tree navigation*
 
-✅ User authentication (register, login, logout)
-✅ Settings management
-✅ IMAP account management
-✅ Email list with virtualized scrolling
-✅ Email viewing and actions
-✅ Rich text compose with TipTap
-✅ Search functionality
-✅ Dark mode support
+![Add Account](screenshots/add-account.png)
+*Add email account with auto-configuration support*
+
+![Settings](screenshots/settings.png)
+*Customizable appearance, email display, and compose settings*
+
+## Features
+
+- Multi-account IMAP support with tree or dropdown navigation
+- Secure credential storage (AES-256-GCM encrypted per-user)
+- Real-time updates via WebSocket + IMAP IDLE
+- Virtualized email list (handles large mailboxes with 60fps scrolling)
+- Keyboard shortcuts (Gmail-like, press `?` for help)
+- Dark mode support
+- Rich text compose with TipTap editor
+- File attachments with drag & drop
+- Reply/Reply All/Forward
+- Bulk email actions (mark read/unread, star, archive, delete, move)
+- Instant email search
+- Email auto-configuration via DNS/domain discovery
 
 ## Quick Start
 
@@ -29,66 +42,17 @@ cd packages/server && npm run db:setup && cd ../..
 
 # Development mode (runs both server and client)
 npm run dev
-
-# Or run separately:
-cd packages/server && npm run dev  # Server on port 3000
-cd packages/client && npm run dev  # Client on port 5173
 ```
 
-## Testing the Application
+Open http://localhost:5173 in your browser.
 
-### Manual Testing (Frontend)
+## Adding Email Accounts
 
-1. Start the development servers:
-   ```bash
-   npm run dev
-   ```
-
-2. Open http://localhost:5173 in your browser
-
-3. **Register a new account** - Click "Sign up" and create an account
-
-4. **Login** - Use your credentials to log in
-
-5. **Add an IMAP account** - Click "Add Account" and enter your email server details:
-   - For Gmail: Use `imap.gmail.com` (port 993) and an [App Password](https://support.google.com/accounts/answer/185833)
-   - For Outlook: Use `outlook.office365.com` (port 993)
-   - For other providers: Check your email provider's IMAP settings
-
-6. **Explore the UI**:
-   - Browse folders in the sidebar
-   - View emails in the virtualized list
-   - Read emails with full HTML rendering
-   - Compose new emails with the rich text editor
-   - Use keyboard shortcuts (press `?` for help)
-   - Try dark mode in Settings
-
-### Automated API Tests
-
-Run the API test suite to verify all backend endpoints:
-
-```bash
-bash scripts/test-api.sh
-```
-
-This tests:
-- User registration and duplicate rejection
-- Login with valid/invalid credentials
-- Session management (/auth/me)
-- Settings CRUD
-- Accounts listing
-- Logout and session invalidation
-
-### Build Verification
-
-```bash
-# Build all packages
-npm run build
-
-# Check for TypeScript errors
-cd packages/client && npx tsc --noEmit
-cd packages/server && npx tsc --noEmit
-```
+1. Click "Add Account" in the sidebar
+2. Enter your email address - settings will auto-configure for common providers
+3. For Gmail: Use an [App Password](https://support.google.com/accounts/answer/185833) (not your regular password)
+4. For Outlook: Use `outlook.office365.com` (port 993)
+5. Click "Test Connection" to verify, then "Add Account"
 
 ## Project Structure
 
@@ -96,31 +60,19 @@ cd packages/server && npx tsc --noEmit
 imap-browser/
 ├── packages/
 │   ├── shared/           # Shared TypeScript types and Zod schemas
-│   │   └── src/types/    # User, Account, Email, Folder, Settings types
-│   │
 │   ├── server/           # Fastify backend
 │   │   └── src/
 │   │       ├── db/       # Drizzle ORM schema and database
-│   │       ├── services/ # Business logic
-│   │       │   ├── auth/ # Authentication, encryption
-│   │       │   ├── imap/ # Connection pool, sync
-│   │       │   ├── smtp/ # Email sending
-│   │       │   └── email/# Email operations
+│   │       ├── services/ # Auth, IMAP, SMTP, email operations
 │   │       ├── routes/   # REST API endpoints
 │   │       └── websocket/# Real-time updates
-│   │
 │   └── client/           # React frontend
 │       └── src/
 │           ├── components/
-│           │   ├── layout/   # AppLayout, Sidebar, Header
-│           │   ├── accounts/ # AddAccountDialog
-│           │   ├── emails/   # EmailList, EmailView, EmailToolbar
-│           │   ├── compose/  # ComposeDialog, RichTextEditor
-│           │   └── search/   # SearchBar
-│           ├── hooks/        # React Query hooks
-│           ├── stores/       # Zustand state
-│           └── pages/        # Login, Mail, Settings pages
-│
+│           ├── hooks/    # React Query hooks
+│           ├── stores/   # Zustand state
+│           └── pages/    # Login, Mail, Settings
+├── screenshots/          # Application screenshots
 ├── Dockerfile
 ├── docker-compose.yml
 └── .env.example
@@ -140,71 +92,65 @@ imap-browser/
 - **React 18** with TypeScript
 - **Vite** - Build tool
 - **TanStack Query** - Server state management
-- **TanStack Virtual** - Virtualized lists (60fps scrolling)
+- **TanStack Virtual** - Virtualized lists
 - **Zustand** - Client state
 - **shadcn/ui + Radix UI** - Accessible components
 - **Tailwind CSS** - Styling
-- **TipTap** - Rich text editor for compose
+- **TipTap** - Rich text editor
 
-## Architecture
+## Security
 
-### Security Model
 1. User passwords are hashed with Argon2id
 2. Each user has a unique encryption salt
 3. IMAP/SMTP credentials are encrypted with AES-256-GCM using a key derived from the user's password
 4. Sessions use HttpOnly, Secure, SameSite=Strict cookies
 5. Auth cookie expires in 15 minutes (auto-refreshed)
 
-### Database Schema (SQLite)
-- `users` - User accounts
-- `sessions` - Server-side sessions
-- `accounts` - IMAP accounts (encrypted credentials)
-- `folders` - Synced folder structure
-- `messages` - Email headers (body fetched on demand)
-- `message_bodies` - Full email content (lazy loaded)
-- `attachments` - Attachment metadata
-- `drafts` - Local drafts
-- `draft_attachments` - Uploaded attachments
-- `settings` - User preferences
-
-### API Endpoints
+## API Endpoints
 
 ```
-POST   /api/auth/register    - Create account
-POST   /api/auth/login       - Login
-POST   /api/auth/logout      - Logout
-GET    /api/auth/me          - Current user
-PATCH  /api/auth/me          - Update profile
+POST   /api/auth/register       Create account
+POST   /api/auth/login          Login
+POST   /api/auth/logout         Logout
+GET    /api/auth/me             Current user
 
-GET    /api/accounts         - List IMAP accounts
-POST   /api/accounts         - Add account
-GET    /api/accounts/:id     - Get account
-PATCH  /api/accounts/:id     - Update account
-DELETE /api/accounts/:id     - Delete account
-GET    /api/accounts/:id/folders - List folders
-POST   /api/accounts/:id/sync    - Sync folders
+GET    /api/accounts            List IMAP accounts
+POST   /api/accounts            Add account
+PATCH  /api/accounts/:id        Update account
+DELETE /api/accounts/:id        Delete account
+GET    /api/accounts/:id/folders      List folders
+POST   /api/accounts/:id/sync         Sync folders
 
-GET    /api/accounts/:id/folders/:fid/emails - List emails
-GET    /api/accounts/:id/emails/:eid         - Get email
-POST   /api/accounts/:id/emails/flags        - Update flags
-POST   /api/accounts/:id/emails/move         - Move emails
-POST   /api/accounts/:id/emails/delete       - Delete emails
+GET    /api/accounts/:id/folders/:fid/emails    List emails
+GET    /api/accounts/:id/emails/:eid            Get email
+POST   /api/accounts/:id/emails/flags           Update flags
+POST   /api/accounts/:id/emails/move            Move emails
+POST   /api/accounts/:id/emails/delete          Delete emails
 
-POST   /api/send             - Send email
-POST   /api/drafts           - Save draft
-GET    /api/drafts           - List drafts
-POST   /api/attachments      - Upload attachment
+POST   /api/send                Send email
+POST   /api/drafts              Save draft
+GET    /api/settings            Get settings
+PATCH  /api/settings            Update settings
 
-GET    /api/settings         - Get settings
-PATCH  /api/settings         - Update settings
+WS     /ws                      WebSocket for real-time updates
+```
 
-WS     /ws                   - WebSocket for real-time updates
+## Docker Deployment
+
+```bash
+docker-compose up -d
+```
+
+Or build manually:
+
+```bash
+docker build -t imap-browser .
+docker run -p 3000:3000 -v imap-data:/app/data imap-browser
 ```
 
 ## Environment Variables
 
 ```bash
-# Server
 NODE_ENV=development
 PORT=3000
 HOST=0.0.0.0
@@ -213,68 +159,20 @@ COOKIE_SECRET=change-me-in-production-to-a-random-32-char-string
 CORS_ORIGIN=http://localhost:5173
 ```
 
-## Docker Deployment
+## Testing
+
+### API Tests
 
 ```bash
-# Build and run
-docker-compose up -d
-
-# Or build manually
-docker build -t imap-browser .
-docker run -p 3000:3000 -v imap-data:/app/data imap-browser
+bash scripts/test-api.sh
 ```
 
-## Implementation Phases
+### Type Checking
 
-- [x] **Phase 1**: Monorepo setup, shared types, database schema
-- [x] **Phase 2**: Authentication, encryption, sessions
-- [x] **Phase 3**: IMAP connection pool, folder sync, message fetching
-- [x] **Phase 4**: Email UI (list, view, compose)
-- [x] **Phase 5**: Email actions (flag, move, delete, search)
-- [x] **Phase 6**: SMTP sending, rich text editor (TipTap)
-- [x] **Phase 7**: Settings page with full preferences UI
-- [x] **Phase 8**: API test suite (`scripts/test-api.sh`)
-- [ ] **Phase 9**: E2E tests (Playwright), performance optimization, offline caching
-
-## Key Files Reference
-
-| File | Purpose |
-|------|---------|
-| `packages/shared/src/types/*.ts` | All TypeScript types and Zod schemas |
-| `packages/server/src/db/schema.ts` | Database schema |
-| `packages/server/src/services/auth/encryption-service.ts` | AES-256-GCM encryption |
-| `packages/server/src/services/imap/connection-pool.ts` | IMAP connection management |
-| `packages/server/src/services/imap/sync-service.ts` | Folder and message sync |
-| `packages/client/src/components/emails/EmailList.tsx` | Virtualized email list |
-| `packages/client/src/components/emails/EmailToolbar.tsx` | Bulk email actions |
-| `packages/client/src/components/compose/RichTextEditor.tsx` | TipTap rich text editor |
-| `packages/client/src/components/search/SearchBar.tsx` | Email search with instant results |
-| `packages/client/src/pages/SettingsPage.tsx` | Settings UI |
-| `packages/client/src/hooks/use-*.ts` | React Query hooks |
-| `packages/client/src/stores/*.ts` | Zustand stores |
-
-## Features
-
-- Multi-account IMAP support
-- Secure credential storage (encrypted per-user)
-- Real-time updates via WebSocket + IMAP IDLE
-- Virtualized email list (handles large mailboxes)
-- Keyboard shortcuts (Gmail-like)
-- Dark mode support
-- Responsive design
-- Rich text compose with TipTap editor
-- File attachments with drag & drop
-- Reply/Reply All/Forward
-- Bulk email actions (mark read/unread, star, archive, delete, move)
-- Instant email search
-- Comprehensive settings page
-
-## Contributing
-
-1. Run `npm install` to install dependencies
-2. Run `npm run build` to verify everything compiles
-3. Run `npm run dev` to start development servers
-4. Add tests in `packages/*/src/__tests__/`
+```bash
+cd packages/client && npx tsc --noEmit
+cd packages/server && npx tsc --noEmit
+```
 
 ## License
 

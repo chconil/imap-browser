@@ -28,10 +28,12 @@ interface AccountMenuProps {
 
 export function AccountMenu({ account, onEdit }: AccountMenuProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const deleteAccount = useDeleteAccount();
   const { selectedAccountId, setSelectedAccount } = useMailStore();
 
   const handleDelete = async () => {
+    setDeleteError(null);
     try {
       await deleteAccount.mutateAsync(account.id);
       // If we deleted the selected account, clear selection
@@ -41,8 +43,16 @@ export function AccountMenu({ account, onEdit }: AccountMenuProps) {
       setShowDeleteDialog(false);
     } catch (error) {
       console.error('Failed to delete account:', error);
-      setShowDeleteDialog(false);
+      const message = error instanceof Error ? error.message : 'Failed to delete account';
+      setDeleteError(message);
     }
+  };
+
+  const handleDialogClose = (open: boolean) => {
+    if (!open) {
+      setDeleteError(null);
+    }
+    setShowDeleteDialog(open);
   };
 
   return (
@@ -69,7 +79,7 @@ export function AccountMenu({ account, onEdit }: AccountMenuProps) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <AlertDialog open={showDeleteDialog} onOpenChange={handleDialogClose}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete account?</AlertDialogTitle>
@@ -78,6 +88,11 @@ export function AccountMenu({ account, onEdit }: AccountMenuProps) {
               and all synced emails. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {deleteError && (
+            <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
+              {deleteError}
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteAccount.isPending}>Cancel</AlertDialogCancel>
             <Button

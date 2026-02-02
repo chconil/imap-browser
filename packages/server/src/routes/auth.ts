@@ -104,8 +104,16 @@ export async function registerAuthRoutes(fastify: FastifyInstance): Promise<void
       await authService.logout(sessionId);
     }
 
-    reply.clearCookie('session', { path: '/' });
-    reply.clearCookie('_auth', { path: '/' });
+    // Clear cookies with matching attributes (required for proper cookie deletion)
+    const clearOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict' as const,
+      path: '/',
+    };
+
+    reply.clearCookie('session', clearOptions);
+    reply.clearCookie('_auth', clearOptions);
 
     return { success: true };
   });
@@ -127,8 +135,14 @@ export async function registerAuthRoutes(fastify: FastifyInstance): Promise<void
     const auth = await authService.validateSession(sessionId);
 
     if (!auth) {
-      reply.clearCookie('session', { path: '/' });
-      reply.clearCookie('_auth', { path: '/' });
+      const clearOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict' as const,
+        path: '/',
+      };
+      reply.clearCookie('session', clearOptions);
+      reply.clearCookie('_auth', clearOptions);
 
       return reply.status(401).send({
         success: false,

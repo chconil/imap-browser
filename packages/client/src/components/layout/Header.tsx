@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth-store';
 import { useMailStore } from '@/stores/mail-store';
 import { useSettingsStore } from '@/stores/settings-store';
@@ -30,8 +31,14 @@ export function Header() {
   const { toggleSidebar } = useMailStore();
   const { theme, setTheme } = useSettingsStore();
   const { currentPage, navigate } = useNavigation();
+  const queryClient = useQueryClient();
 
   const isOnSettings = currentPage === 'settings';
+
+  const handleLogout = async () => {
+    await logout();
+    queryClient.clear();
+  };
 
   return (
     <header className="h-14 border-b bg-card flex items-center justify-between px-4 gap-4">
@@ -114,7 +121,7 @@ export function Header() {
               Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={logout}>
+            <DropdownMenuItem onClick={handleLogout}>
               <LogOut className="h-4 w-4 mr-2" />
               Log out
             </DropdownMenuItem>
