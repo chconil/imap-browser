@@ -109,6 +109,11 @@ export function EmailList() {
   const updateFlags = useUpdateFlags();
   const syncFolder = useSyncFolder();
 
+  // Flatten all pages of emails
+  const emails = useMemo(() => {
+    return data?.pages.flatMap((page) => page.emails) ?? [];
+  }, [data]);
+
   // Auto-sync when folder is empty and hasn't been synced yet
   useEffect(() => {
     if (selectedAccountId && selectedFolderId && !isLoading && emails.length === 0 && !syncFolder.isPending) {
@@ -120,11 +125,6 @@ export function EmailList() {
       }
     }
   }, [selectedAccountId, selectedFolderId, isLoading, emails.length, syncFolder]);
-
-  // Flatten all pages of emails
-  const emails = useMemo(() => {
-    return data?.pages.flatMap((page) => page.emails) ?? [];
-  }, [data]);
 
   // Virtual list
   const virtualizer = useVirtualizer({

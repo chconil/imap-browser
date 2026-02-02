@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -203,7 +204,7 @@ export function AddAccountDialog() {
                 </div>
                 <div>
                   <Label htmlFor="imapPassword">Password</Label>
-                  <Input id="imapPassword" type="password" {...form.register('imapPassword')} />
+                  <PasswordInput id="imapPassword" {...form.register('imapPassword')} />
                 </div>
               </div>
             </div>

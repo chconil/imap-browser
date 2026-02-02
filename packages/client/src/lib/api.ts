@@ -200,7 +200,7 @@ export const emailsApi = {
   syncFolder: (accountId: string, folderId: string) =>
     request<{ newMessages: number; updatedMessages: number }>(
       `/accounts/${accountId}/folders/${folderId}/sync`,
-      { method: 'POST' },
+      { method: 'POST', body: JSON.stringify({}) },
     ),
 };
 
