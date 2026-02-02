@@ -58,7 +58,7 @@ async function request<T>(
 
   const data: ApiResponse<T> = await response.json();
 
-  if (!data.success || !data.data) {
+  if (!data.success) {
     throw new ApiError(
       data.error?.code || 'UNKNOWN_ERROR',
       data.error?.message || 'An unknown error occurred',
@@ -66,7 +66,7 @@ async function request<T>(
     );
   }
 
-  return data.data;
+  return data.data as T;
 }
 
 // Auth API

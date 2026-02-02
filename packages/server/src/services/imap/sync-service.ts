@@ -122,6 +122,13 @@ export class ImapSyncService {
     // Open mailbox
     const mailbox = await client.mailboxOpen(folderPath);
 
+    // Check if UIDVALIDITY changed (requires full resync)
+    const uidValidityChanged = folder.uidValidity && folder.uidValidity !== Number(mailbox.uidValidity);
+    if (uidValidityChanged) {
+      // Delete all messages and resync
+      await db.delete(messages).where(eq(messages.folderId, folder.id));
+    }
+
     // Update folder metadata
     await db.update(folders)
       .set({
@@ -133,12 +140,6 @@ export class ImapSyncService {
       })
       .where(eq(folders.id, folder.id));
 
-    // Check if UIDVALIDITY changed (requires full resync)
-    if (folder.uidValidity && folder.uidValidity !== Number(mailbox.uidValidity)) {
-      // Delete all messages and resync
-      await db.delete(messages).where(eq(messages.folderId, folder.id));
-    }
-
     // Get existing message UIDs
     const existingMessages = await db.query.messages.findMany({
       where: eq(messages.folderId, folder.id),
@@ -149,22 +150,29 @@ export class ImapSyncService {
     let newMessages = 0;
     let updatedMessages = 0;
 
-    // Fetch new messages
+    // Fetch messages
     if (mailbox.exists > 0) {
-      const startUid = folder.uidNext || 1;
-      const fetchRange = `${startUid}:*`;
+      // If no messages synced yet OR uidValidity changed, fetch ALL messages
+      // Otherwise, only fetch messages we don't have
+      const needsFullSync = existingMessages.length === 0 || uidValidityChanged;
+      const fetchRange = needsFullSync ? '1:*' : `1:*`;
 
       const fetchedMessages: FetchMessageObject[] = [];
 
-      for await (const msg of client.fetch(fetchRange, {
-        uid: true,
-        envelope: true,
-        flags: true,
-        bodyStructure: true,
-        size: true,
-        internalDate: true,
-      }, { uid: true })) {
-        fetchedMessages.push(msg);
+      try {
+        for await (const msg of client.fetch(fetchRange, {
+          uid: true,
+          envelope: true,
+          flags: true,
+          bodyStructure: true,
+          size: true,
+          internalDate: true,
+        }, { uid: true })) {
+          fetchedMessages.push(msg);
+        }
+      } catch (fetchError) {
+        // Log but continue - partial sync is better than no sync
+        console.error(`Error fetching messages from ${folderPath}:`, fetchError);
       }
 
       const total = fetchedMessages.length;
@@ -186,8 +194,12 @@ export class ImapSyncService {
 
         if (existingFlags === undefined) {
           // New message
-          await this.insertMessage(folder.id, accountId, msg);
-          newMessages++;
+          try {
+            await this.insertMessage(folder.id, accountId, msg);
+            newMessages++;
+          } catch (insertError) {
+            console.error(`Error inserting message UID ${msg.uid}:`, insertError);
+          }
         } else {
           // Check if flags changed
           const newFlags = JSON.stringify(Array.from(msg.flags || []));
@@ -204,7 +216,7 @@ export class ImapSyncService {
       }
     }
 
-    // Update unread count
+    // Update unread count for this folder
     const unreadCount = await this.getUnreadCount(client, folderPath);
     await db.update(folders)
       .set({ unreadMessages: unreadCount })
@@ -221,6 +233,38 @@ export class ImapSyncService {
     }
 
     return { newMessages, updatedMessages };
+  }
+
+  /**
+   * Update unread counts for all folders in an account
+   */
+  async updateAllFolderCounts(
+    accountId: string,
+    userPassword: string,
+    userSalt: string,
+  ): Promise<void> {
+    const client = await imapConnectionPool.getConnection(accountId, userPassword, userSalt);
+    const db = getDatabase();
+
+    const accountFolders = await db.query.folders.findMany({
+      where: eq(folders.accountId, accountId),
+    });
+
+    for (const folder of accountFolders) {
+      if (!folder.isSelectable) continue;
+
+      try {
+        const status = await client.status(folder.path, { unseen: true, messages: true });
+        await db.update(folders)
+          .set({
+            unreadMessages: status.unseen || 0,
+            totalMessages: status.messages || 0,
+          })
+          .where(eq(folders.id, folder.id));
+      } catch {
+        // Ignore errors for individual folders
+      }
+    }
   }
 
   /**
@@ -252,44 +296,73 @@ export class ImapSyncService {
 
     const client = await imapConnectionPool.getConnection(accountId, userPassword, userSalt);
 
-    await client.mailboxOpen(folder.path);
+    try {
+      await client.mailboxOpen(folder.path);
+    } catch (openError) {
+      throw new Error(`Failed to open folder: ${openError instanceof Error ? openError.message : 'Unknown error'}`);
+    }
 
     let textBody: string | null = null;
     let htmlBody: string | null = null;
 
-    // Fetch body parts
-    const downloaded = await client.download(message.uid.toString(), undefined, { uid: true });
+    // Try to download the full message first
+    try {
+      const downloaded = await client.download(message.uid.toString(), undefined, { uid: true });
 
-    if (downloaded?.content) {
-      const chunks: Buffer[] = [];
-      for await (const chunk of downloaded.content) {
-        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-      }
-      const rawContent = Buffer.concat(chunks).toString('utf8');
+      if (downloaded?.content) {
+        const chunks: Buffer[] = [];
+        for await (const chunk of downloaded.content) {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+        const rawContent = Buffer.concat(chunks).toString('utf8');
 
-      // Parse based on content type
-      if (downloaded.meta?.contentType?.includes('text/html')) {
-        htmlBody = rawContent;
-      } else if (downloaded.meta?.contentType?.includes('text/plain')) {
-        textBody = rawContent;
-      }
-    }
-
-    // Try to get both text and HTML parts
-    for await (const msg of client.fetch(message.uid.toString(), {
-      bodyParts: ['TEXT', '1', '1.1', '1.2'],
-    }, { uid: true })) {
-      if (msg.bodyParts) {
-        for (const [_partId, content] of msg.bodyParts) {
-          const text = content?.toString('utf8') || '';
-          // Heuristic: HTML usually has tags
-          if (text.includes('<html') || text.includes('<body') || text.includes('<div')) {
-            htmlBody = text;
-          } else if (!textBody) {
-            textBody = text;
+        // Parse based on content type
+        if (downloaded.meta?.contentType?.includes('text/html')) {
+          htmlBody = rawContent;
+        } else if (downloaded.meta?.contentType?.includes('text/plain')) {
+          textBody = rawContent;
+        } else {
+          // If content type is unknown, try to detect
+          if (rawContent.includes('<html') || rawContent.includes('<body') || rawContent.includes('<!DOCTYPE')) {
+            htmlBody = rawContent;
+          } else {
+            textBody = rawContent;
           }
         }
       }
+    } catch (downloadError) {
+      console.error(`Error downloading message ${message.uid}:`, downloadError);
+      // Continue to try fetching body parts
+    }
+
+    // Try to get specific body parts if we don't have content yet
+    if (!textBody && !htmlBody) {
+      try {
+        for await (const msg of client.fetch(message.uid.toString(), {
+          bodyParts: ['TEXT', '1', '1.1', '1.2', '2'],
+        }, { uid: true })) {
+          if (msg.bodyParts) {
+            for (const [_partId, content] of msg.bodyParts) {
+              const text = content?.toString('utf8') || '';
+              if (!text) continue;
+
+              // Heuristic: HTML usually has tags
+              if (text.includes('<html') || text.includes('<body') || text.includes('<div') || text.includes('<!DOCTYPE')) {
+                if (!htmlBody) htmlBody = text;
+              } else if (!textBody) {
+                textBody = text;
+              }
+            }
+          }
+        }
+      } catch (fetchError) {
+        console.error(`Error fetching body parts for message ${message.uid}:`, fetchError);
+      }
+    }
+
+    // If we still have nothing, return empty content with a note
+    if (!textBody && !htmlBody) {
+      textBody = '(Unable to load message content)';
     }
 
     return { textBody, htmlBody };

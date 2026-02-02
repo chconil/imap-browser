@@ -56,9 +56,19 @@ export class ImapConnectionPool extends EventEmitter {
     userSalt: string,
   ): Promise<ImapFlow> {
     const existing = this.connections.get(accountId);
-    if (existing?.isConnected) {
+    if (existing?.isConnected && existing.client.usable) {
       existing.lastActivity = Date.now();
       return existing.client;
+    }
+
+    // If we have a stale connection, clean it up
+    if (existing) {
+      try {
+        await existing.client.logout();
+      } catch {
+        // Ignore
+      }
+      this.connections.delete(accountId);
     }
 
     return this.connect(accountId, userPassword, userSalt);

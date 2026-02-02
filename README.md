@@ -24,6 +24,9 @@ npm install
 # Build all packages
 npm run build
 
+# Initialize the database (first time only)
+cd packages/server && npm run db:setup && cd ../..
+
 # Development mode (runs both server and client)
 npm run dev
 

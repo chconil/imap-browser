@@ -354,6 +354,13 @@ export async function registerEmailRoutes(fastify: FastifyInstance): Promise<voi
         ctx.userSalt,
       );
 
+      // Also update counts for all folders in background
+      imapSyncService.updateAllFolderCounts(
+        req.params.accountId,
+        ctx.userPassword,
+        ctx.userSalt,
+      ).catch(err => console.error('Error updating folder counts:', err));
+
       return {
         success: true,
         data: result,

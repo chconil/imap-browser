@@ -26,9 +26,11 @@ import {
   RefreshCw,
   Mail,
 } from 'lucide-react';
-import { buildFolderTree, type FolderTreeNode } from '@imap-browser/shared';
+import { buildFolderTree, type FolderTreeNode, type Account } from '@imap-browser/shared';
 import { useState } from 'react';
 import { AddAccountDialog } from '@/components/accounts/AddAccountDialog';
+import { AccountMenu } from '@/components/accounts/AccountMenu';
+import { EditAccountDialog } from '@/components/accounts/EditAccountDialog';
 
 const FOLDER_ICONS: Record<string, typeof Inbox> = {
   inbox: Inbox,
@@ -112,6 +114,91 @@ function FolderItem({
   );
 }
 
+function AccountTreeItem({
+  account,
+  isSelected,
+  selectedFolderId,
+  onSelectAccount,
+  onSelectFolder,
+  onEdit,
+}: {
+  account: Account;
+  isSelected: boolean;
+  selectedFolderId: string | null;
+  onSelectAccount: (accountId: string) => void;
+  onSelectFolder: (folderId: string) => void;
+  onEdit: (account: Account) => void;
+}) {
+  const [isExpanded, setIsExpanded] = useState(isSelected);
+  const { data: folders = [], isLoading } = useFolders(account.id);
+  const folderTree = buildFolderTree(folders);
+
+  // Auto-expand when account is selected
+  if (isSelected && !isExpanded) {
+    setIsExpanded(true);
+  }
+
+  return (
+    <div>
+      <div
+        className={cn(
+          'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent',
+          isSelected && 'bg-accent/50',
+        )}
+      >
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="p-0.5 hover:bg-muted rounded"
+        >
+          {isExpanded ? (
+            <ChevronDown className="h-3 w-3" />
+          ) : (
+            <ChevronRight className="h-3 w-3" />
+          )}
+        </button>
+        <button
+          onClick={() => {
+            onSelectAccount(account.id);
+            setIsExpanded(true);
+          }}
+          className="flex-1 flex items-center gap-2 text-left"
+        >
+          <div
+            className={cn(
+              'h-2 w-2 rounded-full',
+              account.isConnected ? 'bg-green-500' : 'bg-red-500',
+            )}
+          />
+          <span className="flex-1 truncate font-medium">{account.name}</span>
+        </button>
+        <AccountMenu account={account} onEdit={onEdit} />
+      </div>
+      {isExpanded && (
+        <div className="ml-2">
+          {isLoading ? (
+            <div className="px-2 py-2 text-xs text-muted-foreground">Loading...</div>
+          ) : folderTree.length === 0 ? (
+            <div className="px-2 py-2 text-xs text-muted-foreground">No folders</div>
+          ) : (
+            folderTree.map((folder) => (
+              <FolderItem
+                key={folder.id}
+                folder={folder}
+                level={1}
+                selectedFolderId={isSelected ? selectedFolderId : null}
+                onSelect={(folderId) => {
+                  onSelectAccount(account.id);
+                  onSelectFolder(folderId);
+                }}
+              />
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Sidebar() {
   const { data: accounts = [] } = useAccounts();
   const {
@@ -123,8 +210,10 @@ export function Sidebar() {
     openCompose,
   } = useMailStore();
   const { navigationMode } = useSettingsStore();
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
 
   const { data: folders = [], isLoading: foldersLoading, refetch: refetchFolders } = useFolders(selectedAccountId);
+  const selectedAccount = accounts.find(a => a.id === selectedAccountId) || null;
 
   const folderTree = buildFolderTree(folders);
 
@@ -183,51 +272,76 @@ export function Sidebar() {
       {/* Account selector (dropdown mode) */}
       {navigationMode === 'dropdown' && (
         <div className="px-4 pb-2">
-          <Select
-            value={selectedAccountId || ''}
-            onValueChange={(value) => {
-              setSelectedAccount(value);
-              setSelectedFolder(null);
-            }}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select account" />
-            </SelectTrigger>
-            <SelectContent>
-              {accounts.map((account) => (
-                <SelectItem key={account.id} value={account.id}>
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={cn(
-                        'h-2 w-2 rounded-full',
-                        account.isConnected ? 'bg-green-500' : 'bg-red-500',
-                      )}
-                    />
-                    {account.name}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-1">
+            <Select
+              value={selectedAccountId || ''}
+              onValueChange={(value) => {
+                setSelectedAccount(value);
+                setSelectedFolder(null);
+              }}
+            >
+              <SelectTrigger className="flex-1">
+                <SelectValue placeholder="Select account" />
+              </SelectTrigger>
+              <SelectContent>
+                {accounts.map((account) => (
+                  <SelectItem key={account.id} value={account.id}>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={cn(
+                          'h-2 w-2 rounded-full',
+                          account.isConnected ? 'bg-green-500' : 'bg-red-500',
+                        )}
+                      />
+                      {account.name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedAccount && (
+              <AccountMenu account={selectedAccount} onEdit={setEditingAccount} />
+            )}
+          </div>
         </div>
       )}
 
       {/* Folder list */}
       <ScrollArea className="flex-1">
         <div className="px-2 py-2">
-          {foldersLoading ? (
-            <div className="px-2 py-4 text-sm text-muted-foreground">Loading folders...</div>
-          ) : folderTree.length === 0 ? (
-            <div className="px-2 py-4 text-sm text-muted-foreground">No folders</div>
+          {navigationMode === 'tree' ? (
+            // Tree mode: show all accounts with their folders
+            accounts.length === 0 ? (
+              <div className="px-2 py-4 text-sm text-muted-foreground">No accounts</div>
+            ) : (
+              accounts.map((account) => (
+                <AccountTreeItem
+                  key={account.id}
+                  account={account}
+                  isSelected={selectedAccountId === account.id}
+                  selectedFolderId={selectedFolderId}
+                  onSelectAccount={setSelectedAccount}
+                  onSelectFolder={setSelectedFolder}
+                  onEdit={setEditingAccount}
+                />
+              ))
+            )
           ) : (
-            folderTree.map((folder) => (
-              <FolderItem
-                key={folder.id}
-                folder={folder}
-                selectedFolderId={selectedFolderId}
-                onSelect={setSelectedFolder}
-              />
-            ))
+            // Dropdown mode: show folders for selected account
+            foldersLoading ? (
+              <div className="px-2 py-4 text-sm text-muted-foreground">Loading folders...</div>
+            ) : folderTree.length === 0 ? (
+              <div className="px-2 py-4 text-sm text-muted-foreground">No folders</div>
+            ) : (
+              folderTree.map((folder) => (
+                <FolderItem
+                  key={folder.id}
+                  folder={folder}
+                  selectedFolderId={selectedFolderId}
+                  onSelect={setSelectedFolder}
+                />
+              ))
+            )
           )}
         </div>
       </ScrollArea>
@@ -247,6 +361,13 @@ export function Sidebar() {
           </Button>
         </div>
       )}
+
+      {/* Edit Account Dialog */}
+      <EditAccountDialog
+        account={editingAccount}
+        open={!!editingAccount}
+        onOpenChange={(open) => !open && setEditingAccount(null)}
+      />
     </div>
   );
 }

@@ -355,7 +355,7 @@ export async function registerAccountRoutes(fastify: FastifyInstance): Promise<v
     );
 
     if (result.success) {
-      return { success: true };
+      return { success: true, data: {} };
     } else {
       return reply.status(400).send({
         success: false,
