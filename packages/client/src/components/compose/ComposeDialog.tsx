@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { RichTextEditor, type RichTextEditorRef } from './RichTextEditor';
 import { X, Send, Paperclip, Loader2, Trash2 } from 'lucide-react';
 import { formatFileSize } from '@/lib/utils';
 
@@ -30,7 +31,6 @@ const composeSchema = z.object({
   cc: z.string().optional(),
   bcc: z.string().optional(),
   subject: z.string(),
-  body: z.string(),
 });
 
 type ComposeFormData = z.infer<typeof composeSchema>;
@@ -50,6 +50,9 @@ export function ComposeDialog() {
 
   const [attachments, setAttachments] = useState<UploadedAttachment[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [htmlBody, setHtmlBody] = useState('');
+  const [textBody, setTextBody] = useState('');
+  const editorRef = useRef<RichTextEditorRef>(null);
 
   const form = useForm<ComposeFormData>({
     resolver: zodResolver(composeSchema),
@@ -59,7 +62,6 @@ export function ComposeDialog() {
       cc: '',
       bcc: '',
       subject: '',
-      body: '',
     },
   });
 
@@ -127,13 +129,17 @@ export function ComposeDialog() {
         cc: data.cc ? parseAddresses(data.cc) : [],
         bcc: data.bcc ? parseAddresses(data.bcc) : [],
         subject: data.subject,
-        textBody: data.body,
+        textBody: textBody,
+        htmlBody: htmlBody || undefined,
         attachmentIds: attachments.map(a => a.id),
         inReplyTo: replyToEmail?.messageId || null,
         references: [],
       });
       form.reset();
       setAttachments([]);
+      setHtmlBody('');
+      setTextBody('');
+      editorRef.current?.setContent('');
     } catch {
       // Error handled by mutation
     }
@@ -143,6 +149,9 @@ export function ComposeDialog() {
     closeCompose();
     form.reset();
     setAttachments([]);
+    setHtmlBody('');
+    setTextBody('');
+    editorRef.current?.setContent('');
   };
 
   return (
@@ -213,10 +222,14 @@ export function ComposeDialog() {
 
           {/* Body */}
           <div className="flex-1 min-h-0 my-3">
-            <textarea
+            <RichTextEditor
+              ref={editorRef}
+              onChange={(html, text) => {
+                setHtmlBody(html);
+                setTextBody(text);
+              }}
               placeholder="Write your message..."
-              {...form.register('body')}
-              className="w-full h-full min-h-[200px] p-3 rounded-md border bg-background resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+              className="h-full"
             />
           </div>
 
