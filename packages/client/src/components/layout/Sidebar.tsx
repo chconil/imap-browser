@@ -113,7 +113,7 @@ function FolderItem({
 }
 
 export function Sidebar() {
-  const { data: accounts = [], isLoading: accountsLoading } = useAccounts();
+  const { data: accounts = [] } = useAccounts();
   const {
     selectedAccountId,
     selectedFolderId,

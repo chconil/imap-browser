@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Account, Folder, EmailHeader } from '@imap-browser/shared';
+import type { EmailHeader } from '@imap-browser/shared';
 
 interface MailState {
   // Selected items
@@ -84,11 +84,11 @@ export const useMailStore = create<MailState>((set) => ({
   toggleSidebar: () =>
     set((state) => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),
 
-  openCompose: (mode = 'new', replyTo = null) =>
+  openCompose: (mode = 'new', replyTo) =>
     set({
       isComposeOpen: true,
       composeMode: mode,
-      replyToEmail: replyTo,
+      replyToEmail: replyTo ?? null,
     }),
 
   closeCompose: () =>
