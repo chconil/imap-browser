@@ -177,7 +177,7 @@ export function Sidebar() {
           <Plus className="h-4 w-4 mr-2" />
           Compose
         </Button>
-        {accounts.length === 0 && <AddAccountDialog />}
+        <AddAccountDialog />
       </div>
 
       {/* Account selector (dropdown mode) */}

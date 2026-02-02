@@ -1,10 +1,11 @@
-import { useRef, useCallback, useMemo } from 'react';
+import { useRef, useCallback, useMemo, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useMailStore } from '@/stores/mail-store';
-import { useInfiniteEmails, useUpdateFlags } from '@/hooks/use-emails';
+import { useInfiniteEmails, useUpdateFlags, useSyncFolder } from '@/hooks/use-emails';
 import { cn, formatDate, truncate } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Star, Paperclip } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Star, Paperclip, RefreshCw } from 'lucide-react';
 import type { EmailHeader } from '@imap-browser/shared';
 
 function EmailRow({
@@ -106,6 +107,19 @@ export function EmailList() {
   } = useInfiniteEmails(selectedAccountId, selectedFolderId);
 
   const updateFlags = useUpdateFlags();
+  const syncFolder = useSyncFolder();
+
+  // Auto-sync when folder is empty and hasn't been synced yet
+  useEffect(() => {
+    if (selectedAccountId && selectedFolderId && !isLoading && emails.length === 0 && !syncFolder.isPending) {
+      // Don't auto-sync if we've already tried
+      const syncKey = `synced_${selectedFolderId}`;
+      if (!sessionStorage.getItem(syncKey)) {
+        sessionStorage.setItem(syncKey, 'true');
+        syncFolder.mutate({ accountId: selectedAccountId, folderId: selectedFolderId });
+      }
+    }
+  }, [selectedAccountId, selectedFolderId, isLoading, emails.length, syncFolder]);
 
   // Flatten all pages of emails
   const emails = useMemo(() => {
@@ -166,8 +180,28 @@ export function EmailList() {
 
   if (emails.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center text-muted-foreground">
-        No emails in this folder
+      <div className="h-full flex flex-col items-center justify-center gap-4 text-muted-foreground">
+        {syncFolder.isPending ? (
+          <>
+            <RefreshCw className="h-8 w-8 animate-spin" />
+            <span>Syncing emails from server...</span>
+          </>
+        ) : (
+          <>
+            <span>No emails in this folder</span>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (selectedAccountId && selectedFolderId) {
+                  syncFolder.mutate({ accountId: selectedAccountId, folderId: selectedFolderId });
+                }
+              }}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Sync from server
+            </Button>
+          </>
+        )}
       </div>
     );
   }

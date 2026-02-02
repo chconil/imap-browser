@@ -39,6 +39,15 @@ export class EncryptionService {
    */
   static encrypt(plaintext: string, key: Buffer): EncryptedData {
     const iv = randomBytes(IV_LENGTH);
+    return this.encryptWithIv(plaintext, key, iv.toString('base64'));
+  }
+
+  /**
+   * Encrypt plaintext using AES-256-GCM with a specific IV
+   * Use this when you need to reuse an IV (e.g., encrypting related data with shared IV storage)
+   */
+  static encryptWithIv(plaintext: string, key: Buffer, ivBase64: string): EncryptedData {
+    const iv = Buffer.from(ivBase64, 'base64');
     const cipher = createCipheriv(ALGORITHM, key, iv, { authTagLength: AUTH_TAG_LENGTH });
 
     const ciphertext = Buffer.concat([
@@ -50,7 +59,7 @@ export class EncryptionService {
 
     return {
       ciphertext: Buffer.concat([ciphertext, authTag]),
-      iv: iv.toString('base64'),
+      iv: ivBase64,
       authTag,
     };
   }

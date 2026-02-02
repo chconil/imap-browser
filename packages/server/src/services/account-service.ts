@@ -61,17 +61,17 @@ export class AccountService {
       throw new Error(`IMAP connection failed: ${testResult.error}`);
     }
 
-    // Encrypt credentials
+    // Encrypt credentials - each field gets its own IV for security
     const key = await EncryptionService.deriveKey(userPassword, userSalt);
 
-    const imapEncrypted = EncryptionService.encrypt(input.imapUsername, key);
+    const imapUsernameEncrypted = EncryptionService.encrypt(input.imapUsername, key);
     const imapPasswordEncrypted = EncryptionService.encrypt(input.imapPassword, key);
 
     // SMTP credentials (use IMAP if not provided)
     const smtpUsername = input.smtpUsername || input.imapUsername;
     const smtpPassword = input.smtpPassword || input.imapPassword;
 
-    const smtpEncrypted = EncryptionService.encrypt(smtpUsername, key);
+    const smtpUsernameEncrypted = EncryptionService.encrypt(smtpUsername, key);
     const smtpPasswordEncrypted = EncryptionService.encrypt(smtpPassword, key);
 
     const now = new Date().toISOString();
@@ -93,15 +93,17 @@ export class AccountService {
       imapHost: input.imapHost,
       imapPort: input.imapPort,
       imapSecurity: input.imapSecurity,
-      imapUsername: imapEncrypted.ciphertext,
+      imapUsername: imapUsernameEncrypted.ciphertext,
       imapPassword: imapPasswordEncrypted.ciphertext,
-      imapIv: imapEncrypted.iv,
+      imapIv: imapUsernameEncrypted.iv,
+      imapPasswordIv: imapPasswordEncrypted.iv,
       smtpHost: input.smtpHost,
       smtpPort: input.smtpPort,
       smtpSecurity: input.smtpSecurity,
-      smtpUsername: smtpEncrypted.ciphertext,
+      smtpUsername: smtpUsernameEncrypted.ciphertext,
       smtpPassword: smtpPasswordEncrypted.ciphertext,
-      smtpIv: smtpEncrypted.iv,
+      smtpIv: smtpUsernameEncrypted.iv,
+      smtpPasswordIv: smtpPasswordEncrypted.iv,
       isConnected: false,
       lastSyncAt: null,
       lastError: null,
@@ -168,7 +170,7 @@ export class AccountService {
     if (input.smtpSecurity) updates.smtpSecurity = input.smtpSecurity;
     if (typeof input.sortOrder === 'number') updates.sortOrder = input.sortOrder;
 
-    // Handle credential updates
+    // Handle credential updates - each field gets its own IV
     if (input.imapUsername || input.imapPassword) {
       const key = await EncryptionService.deriveKey(userPassword, userSalt);
 
@@ -181,10 +183,7 @@ export class AccountService {
       if (input.imapPassword) {
         const encrypted = EncryptionService.encrypt(input.imapPassword, key);
         updates.imapPassword = encrypted.ciphertext;
-        // Use same IV as username if both updated, otherwise keep existing
-        if (!input.imapUsername) {
-          updates.imapIv = encrypted.iv;
-        }
+        updates.imapPasswordIv = encrypted.iv;
       }
 
       // Disconnect existing connection to force reconnect with new credentials
@@ -203,9 +202,7 @@ export class AccountService {
       if (input.smtpPassword) {
         const encrypted = EncryptionService.encrypt(input.smtpPassword, key);
         updates.smtpPassword = encrypted.ciphertext;
-        if (!input.smtpUsername) {
-          updates.smtpIv = encrypted.iv;
-        }
+        updates.smtpPasswordIv = encrypted.iv;
       }
     }
 
@@ -319,7 +316,41 @@ export class AccountService {
       await client.logout();
       return { success: true };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Connection failed';
+      // ImapFlow errors have responseText with server's actual response
+      let errorMessage = 'Connection failed';
+      if (error instanceof Error) {
+        // Check for ImapFlow-specific error properties
+        const imapError = error as Error & { responseText?: string; code?: string };
+        if (imapError.responseText) {
+          // Server returned a specific error message
+          errorMessage = imapError.responseText;
+
+          // Add helpful hints for common auth errors
+          const isGmail = host.includes('gmail.com');
+          const isOutlook = host.includes('outlook') || host.includes('office365');
+
+          if (errorMessage.toLowerCase().includes('invalid credentials') ||
+              errorMessage.toLowerCase().includes('authentication failed')) {
+            if (isGmail) {
+              errorMessage += '. For Gmail, you must use an App Password: enable 2FA at https://myaccount.google.com/security, then create an App Password at https://myaccount.google.com/apppasswords';
+            } else if (isOutlook) {
+              errorMessage += '. For Outlook/Office365, you may need to enable IMAP access and use an App Password if 2FA is enabled';
+            }
+          }
+        } else if (imapError.code === 'ENOTFOUND') {
+          errorMessage = `Server not found: ${host}`;
+        } else if (imapError.code === 'ECONNREFUSED') {
+          errorMessage = `Connection refused by ${host}:${port}`;
+        } else if (imapError.code === 'ETIMEDOUT') {
+          errorMessage = `Connection timed out to ${host}:${port}`;
+        } else if (error.message.includes('certificate')) {
+          errorMessage = `TLS certificate error: ${error.message}`;
+        } else if (error.message === 'Command failed') {
+          errorMessage = 'Authentication failed. Check your username and password.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
       return { success: false, error: errorMessage };
     }
   }

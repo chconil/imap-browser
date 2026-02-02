@@ -82,10 +82,10 @@ export class ImapConnectionPool extends EventEmitter {
       throw new Error('Account not found');
     }
 
-    // Decrypt credentials
+    // Decrypt credentials (each has its own IV)
     const key = await EncryptionService.deriveKey(userPassword, userSalt);
     const imapUsername = EncryptionService.decrypt(account.imapUsername, account.imapIv, key);
-    const imapPassword = EncryptionService.decrypt(account.imapPassword, account.imapIv, key);
+    const imapPassword = EncryptionService.decrypt(account.imapPassword, account.imapPasswordIv, key);
 
     const options: ImapFlowOptions = {
       host: account.imapHost,

@@ -40,7 +40,8 @@ export const accounts = sqliteTable('accounts', {
   // Encrypted IMAP credentials (AES-256-GCM)
   imapUsername: blob('imap_username', { mode: 'buffer' }).notNull(),
   imapPassword: blob('imap_password', { mode: 'buffer' }).notNull(),
-  imapIv: text('imap_iv').notNull(), // Base64 encoded IV
+  imapIv: text('imap_iv').notNull(), // Base64 encoded IV for username
+  imapPasswordIv: text('imap_password_iv').notNull(), // Base64 encoded IV for password
   // SMTP settings
   smtpHost: text('smtp_host').notNull(),
   smtpPort: integer('smtp_port').notNull(),
@@ -48,7 +49,8 @@ export const accounts = sqliteTable('accounts', {
   // Encrypted SMTP credentials (may be same as IMAP)
   smtpUsername: blob('smtp_username', { mode: 'buffer' }).notNull(),
   smtpPassword: blob('smtp_password', { mode: 'buffer' }).notNull(),
-  smtpIv: text('smtp_iv').notNull(), // Base64 encoded IV
+  smtpIv: text('smtp_iv').notNull(), // Base64 encoded IV for username
+  smtpPasswordIv: text('smtp_password_iv').notNull(), // Base64 encoded IV for password
   // Connection state
   isConnected: integer('is_connected', { mode: 'boolean' }).notNull().default(false),
   lastSyncAt: text('last_sync_at'),
