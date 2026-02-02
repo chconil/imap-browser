@@ -2,7 +2,6 @@ import { useAuthStore } from '@/stores/auth-store';
 import { useMailStore } from '@/stores/mail-store';
 import { useSettingsStore } from '@/stores/settings-store';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,9 +11,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { SearchBar } from '@/components/search/SearchBar';
 import {
   Menu,
-  Search,
   Sun,
   Moon,
   Monitor,
@@ -26,15 +25,8 @@ import { getInitials } from '@/lib/utils';
 
 export function Header() {
   const { user, logout } = useAuthStore();
-  const { toggleSidebar, searchQuery, setSearchQuery, setIsSearching } = useMailStore();
+  const { toggleSidebar } = useMailStore();
   const { theme, setTheme } = useSettingsStore();
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      setIsSearching(true);
-    }
-  };
 
   return (
     <header className="h-14 border-b bg-card flex items-center justify-between px-4 gap-4">
@@ -50,18 +42,9 @@ export function Header() {
       </div>
 
       {/* Search */}
-      <form onSubmit={handleSearch} className="flex-1 max-w-xl">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search emails..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-      </form>
+      <div className="flex-1 flex justify-center">
+        <SearchBar />
+      </div>
 
       {/* Right section */}
       <div className="flex items-center gap-2">
