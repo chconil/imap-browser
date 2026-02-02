@@ -10,7 +10,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -33,12 +32,16 @@ export function AccountMenu({ account, onEdit }: AccountMenuProps) {
   const { selectedAccountId, setSelectedAccount } = useMailStore();
 
   const handleDelete = async () => {
-    await deleteAccount.mutateAsync(account.id);
-    setShowDeleteDialog(false);
-
-    // If we deleted the selected account, clear selection
-    if (selectedAccountId === account.id) {
-      setSelectedAccount(null);
+    try {
+      await deleteAccount.mutateAsync(account.id);
+      // If we deleted the selected account, clear selection
+      if (selectedAccountId === account.id) {
+        setSelectedAccount(null);
+      }
+      setShowDeleteDialog(false);
+    } catch (error) {
+      console.error('Failed to delete account:', error);
+      setShowDeleteDialog(false);
     }
   };
 
@@ -76,13 +79,14 @@ export function AccountMenu({ account, onEdit }: AccountMenuProps) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
+            <AlertDialogCancel disabled={deleteAccount.isPending}>Cancel</AlertDialogCancel>
+            <Button
               onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteAccount.isPending}
+              variant="destructive"
             >
               {deleteAccount.isPending ? 'Deleting...' : 'Delete'}
-            </AlertDialogAction>
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
